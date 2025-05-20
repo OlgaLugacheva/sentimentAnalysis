@@ -24,6 +24,9 @@ df.info()
 print(f"\nКоличество пропусков: {df.isnull().sum().sum()}\n")
 print(f"Количество дубликатов: {df.duplicated().sum().sum()}")
 
+# Количество уникальных эмоций
+print(f"Количество уникальных эмоций: {df['Sentiment'].nunique()}")
+
 # Словарь маппинга
 emotion_to_sentiment = {
     # POSITIVE EMOTIONS
