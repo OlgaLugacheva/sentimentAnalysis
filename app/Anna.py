@@ -341,3 +341,40 @@ for sentiment in df['Sentiment_mapping'].unique():
     plt.xlabel('Частота')
     plt.gca().invert_yaxis()
     plt.show()
+
+# НАДО ВЫБРАТЬ, КАК ЛУЧШЕ - ПЕРВЫЙ ВАРИАНТ ВИЗУАЛИЗАЦИИ ВЫШЕ, ВТОРОЙ - НИЖЕ
+def plot_sentiment_analysis(df, sentiment_class):
+    # Создаем фигуру, которая будет состоять из облака слов и рядом график топ-20
+    plt.figure(figsize=(20, 8))
+
+    # Облако слов
+    plt.subplot(1, 2, 1)
+    text_cloud = ' '.join(df[df['Sentiment_mapping'] == sentiment_class]['Text_clean'])
+    wordcloud = WordCloud(width=800, height=400, background_color='white').generate(text_cloud)
+    plt.imshow(wordcloud, interpolation='bilinear')
+    plt.title(f'Облако слов для класса {sentiment_class}', fontsize=14)
+    plt.axis('off')
+
+    # Топ-20 слов
+    plt.subplot(1, 2, 2)
+    all_words = ' '.join(df[df['Sentiment_mapping'] == sentiment_class]['Text_clean']).split()
+    top_words = Counter(all_words).most_common(20)
+    words, counts = zip(*top_words)
+
+    plt.barh(words, counts, color='skyblue')
+    plt.title(f'Топ-20 слов для класса {sentiment_class}', fontsize=14)
+    plt.xlabel('Частота', fontsize=12)
+    plt.ylabel('Слова', fontsize=12)
+    plt.gca().invert_yaxis()
+    plt.tight_layout()
+
+    plt.show()
+
+# Визуализируем для всех классов сразу
+for sentiment in df['Sentiment_mapping'].unique():
+    plot_sentiment_analysis(df, sentiment)
+
+# Визуализируем по отдельности для каждого класса
+plot_sentiment_analysis(df, 'positive')
+plot_sentiment_analysis(df, 'negative')
+plot_sentiment_analysis(df, 'neutral')
