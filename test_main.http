@@ -5,7 +5,63 @@ Accept: application/json
 
 ###
 
-GET http://127.0.0.1:8000/hello/User
+POST http://127.0.0.1:8000/predict
 Accept: application/json
+Content-Type: application/json
+
+{
+ "text": "This product is amazing!"
+}
+
+###
+POST http://127.0.0.1:8000/predict
+Accept: application/json
+Content-Type: application/json
+
+{
+ "text": "i love it"
+}
+
+
+
+###
+
+###
+POST http://127.0.0.1:8000/predict
+Accept: application/json
+Content-Type: application/json
+
+{
+ "text": "anger"
+}
+###
+
+###
+POST http://127.0.0.1:8000/predict
+Accept: application/json
+Content-Type: application/json
+
+{
+ "text": "unreliable"
+}
+
+###
+
+###
+# Загрузка CSV и получение предсказаний
+POST http://127.0.0.1:8000/predict-csv
+Accept: text/csv
+Content-Type: multipart/form-data; boundary=MyBoundary
+
+--MyBoundary
+Content-Disposition: form-data; name="file"; filename="test.csv"
+Content-Type: text/csv
+
+Text
+I love it
+This product is fuck!
+anger
+just okay
+--MyBoundary--
 
 ###
