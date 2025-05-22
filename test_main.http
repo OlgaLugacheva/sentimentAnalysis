@@ -57,11 +57,11 @@ Content-Type: multipart/form-data; boundary=MyBoundary
 Content-Disposition: form-data; name="file"; filename="test.csv"
 Content-Type: text/csv
 
-Text
-I love it
-This product is fuck!
-anger
-just okay
+Text,Sentiment
+I love it,joy
+This product is fuck!,anger
+anger,anger
+just okay,neutral
 --MyBoundary--
 
 ###

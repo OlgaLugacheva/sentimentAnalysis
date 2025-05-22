@@ -1,24 +1,17 @@
-# utils
-import os
-import joblib
+# src/train_model_bert.py
+
 import pandas as pd
-from fastapi import File, HTTPException
-import io
-
-from pandas._typing import ReadCsvBuffer
-from tensorflow.keras.models import load_model
 import numpy as np
-from pydantic import BaseModel, FilePath
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-VECTORIZER_PATH = os.path.join(BASE_DIR, "../models/vectorizer_b.pkl")
-
-model = joblib.load("models/best_model_b.pkl")
-label_encoder = joblib.load("models/label_encoder_b.pkl")
-vectorizer = joblib.load(VECTORIZER_PATH)
+import joblib
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import classification_report
+from transformers import BertTokenizer, BertForSequenceClassification, TrainingArguments, Trainer
+from transformers import DataCollatorWithPadding
+import torch
+from datasets import Dataset
 
 # Маппинг эмоций в три класса
-
 emotion_to_sentiment = {
     # POSITIVE
     "Admiration": "positive", "Approval": "positive", "Gratitude": "positive",
@@ -117,7 +110,7 @@ emotion_to_sentiment = {
     "hypnotic": "positive",
     "iconic": "positive",
     "imagination": "positive",
-"immersion": "positive",
+    "immersion": "positive",
     "innerjourney": "positive",
     "inspiration": "positive",
     "journey": "positive",
@@ -171,59 +164,95 @@ emotion_to_sentiment = {
     "solitude": "neutral"
 }
 
-class TextInput(BaseModel):
-    text: str
+def train_and_save_bert_model():
+    # Загружаем и обрабатываем данные
+    df = pd.read_csv("../data/sentimentdataset_2.csv")
 
+    # Применение маппинга к меткам
+    df['Sentiment'] = df['Sentiment'].astype(str).str.strip().str.capitalize()
+    print("Уникальные значения после нормализации:", df['Sentiment'].unique())
+    df['Sentiment'] = df['Sentiment'].map(emotion_to_sentiment)
 
-def predict_sentiment(input_data: TextInput):
-    processed_text = vectorizer.transform([input_data.text])
+    df = df.dropna(subset=["Text", "Sentiment"])  # Удаляем пропуски
 
-    # Получение вероятностей — опционально
-    prediction_probs = model.predict_proba(processed_text.toarray())
-    prediction_class = np.argmax(prediction_probs, axis=1)
+    # Фильтрация редких классов
+    value_counts = df["Sentiment"].value_counts()
+    valid_labels = value_counts[value_counts >= 2].index
+    df = df[df["Sentiment"].isin(valid_labels)].reset_index(drop=True)
 
-    prediction_label = label_encoder.inverse_transform([prediction_class[0]])[0]
-    return prediction_label
+    # Повторное кодирование меток
+    label_encoder = LabelEncoder()
+    df["label_encoded"] = label_encoder.fit_transform(df["Sentiment"])
 
-def predict_sentiment_batch(filepath_or_buffer: bytes):
-    # Чтение CSV в DataFrame
-    df = pd.read_csv(io.BytesIO(filepath_or_buffer))
+    # Разделение на обучающую и тестовую выборки
+    train_df, test_df = train_test_split(
+        df,
+        test_size=0.2,
+        stratify=df["label_encoded"],
+        random_state=42,
+    )
 
-    # Проверка наличия нужной колонки
-    if "Text" not in df.columns:
-        raise HTTPException(status_code=400, detail="CSV must contain 'Text' column")
-    # sentiment check
+    # Токенизация
+    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 
-    emotion_to_sentiment_clean = {
-        key.strip().lower(): value for key, value in emotion_to_sentiment.items()
-    }
+    def tokenize_function(batch):
+        tokens = tokenizer(batch["Text"], truncation=True, padding="max_length")
+        tokens["labels"] = batch["label_encoded"]
+        return tokens
 
-    # Если есть колонка Sentiment в файле
-    if "Sentiment" in df.columns:
-        # Приводим к единому формату
-        df['Sentiment'] = df['Sentiment'].astype(str).str.strip().str.lower()
+    # Создание датасетов HuggingFace
+    train_dataset = Dataset.from_pandas(train_df[["Text", "label_encoded"]])
+    test_dataset = Dataset.from_pandas(test_df[["Text", "label_encoded"]])
 
-        print("Уникальные значения после нормализации:", df['Sentiment'].unique())
-        df['Sentiment'] = df['Sentiment'].map(emotion_to_sentiment_clean)
+    train_dataset = train_dataset.map(tokenize_function, batched=True)
+    test_dataset = test_dataset.map(tokenize_function, batched=True)
 
-    # Прогноз для каждой строки
-    df["Predict_sentiment"] = df["Text"].astype(str).apply(lambda text: predict_sentiment(TextInput(text=text)))
+    data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
-    # Подсчет точности, если есть колонка 'Sentiment'
-    accuracy = None
-    if "Sentiment" in df.columns:
-        # Убедимся, что обе колонки имеют одинаковый тип (str)
-        true_labels = df["Sentiment"].astype(str)
-        predicted_labels = df["Predict_sentiment"].astype(str)
+    # Загрузка модели
+    num_labels = len(np.unique(df["label_encoded"]))
+    model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=num_labels)
 
-        # Вычисляем долю совпадений
-        accuracy = (true_labels == predicted_labels).mean()
+    # Параметры обучения
+    training_args = TrainingArguments(
+        output_dir="../models/bert_model",
+        per_device_train_batch_size=8,
+        per_device_eval_batch_size=8,
+        num_train_epochs=3,
+        eval_strategy="epoch",
+        save_strategy="epoch",
+        load_best_model_at_end=True,
+        logging_dir="../logs",
+        logging_steps=10,
+    )
 
-    # Преобразование обратно в CSV
-    output = io.StringIO()
-    df.to_csv(output, index=False)
-    output.seek(0)
-    return {
-        "file": output.getvalue(),
-        "accuracy": round(accuracy, 4) if accuracy is not None else None,
-    }
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=test_dataset,
+        tokenizer=tokenizer,
+        data_collator=data_collator,
+    )
+
+    # Обучение
+    trainer.train()
+
+    # Оценка
+    predictions = trainer.predict(test_dataset)
+    y_pred = np.argmax(predictions.predictions, axis=1)
+    y_true = predictions.label_ids
+
+    # Показываем только реально встречающиеся метки
+    used_labels = np.unique(np.concatenate((y_true, y_pred)))
+    target_names = label_encoder.inverse_transform(used_labels)
+
+    print(classification_report(y_true, y_pred, labels=used_labels, target_names=target_names))
+
+    # Сохранение модели и энкодера
+    model.save_pretrained("../models/bert_model")
+    tokenizer.save_pretrained("../models/bert_model")
+    joblib.dump(label_encoder, "../models/label_encoder.pkl")
+
+if __name__ == "__main__":
+    train_and_save_bert_model()

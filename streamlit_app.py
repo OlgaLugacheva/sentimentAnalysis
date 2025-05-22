@@ -27,7 +27,7 @@ with tab1:
                 st.error(f"Ошибка соединения с API: {e}")
 
 with tab2:
-    uploaded_file = st.file_uploader("Загрузите CSV-файл с колонкой 'Text'", type=["csv"])
+    uploaded_file = st.file_uploader("Загрузите CSV-файл с колонкой 'Text' (и опционально 'Sentiment')", type=["csv"])
     if uploaded_file is not None:
         if st.button("Анализировать CSV", key="csv_analysis"):
             try:
@@ -35,13 +35,19 @@ with tab2:
                 response = requests.post(API_CSV_URL, files=files)
 
                 if response.status_code == 200:
+                    # Читаем CSV-ответ
                     df_result = pd.read_csv(BytesIO(response.content))
                     st.success("✅ Анализ завершён.")
                     st.dataframe(df_result)
 
+                    # Показываем точность, если заголовок X-Accuracy присутствует
+                    accuracy = response.headers.get("X-Accuracy")
+                    if accuracy:
+                        st.info(f"📈 Точность предсказания: **{float(accuracy) * 100:.2f}%**")
+
                     # Кнопка для скачивания
-                    csv_download = df_result.to_csv(index=False).encode("utf-8")
-                    st.download_button("📥 Скачать результат CSV", csv_download, file_name="result.csv", mime="text/csv")
+                    st.download_button("📥 Скачать результат CSV", response.content,
+                                       file_name="result.csv", mime="text/csv")
                 else:
                     st.error(f"Ошибка API: {response.status_code}")
             except Exception as e:

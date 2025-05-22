@@ -1,4 +1,6 @@
 # main
+import io
+
 from fastapi import FastAPI, UploadFile, FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi import FastAPI
@@ -7,9 +9,9 @@ import joblib
 import os
 
 # from app.utils import predict_sentiment
-# from app.utils_bert import predict_sentiment
+from app.utils_bert import predict_sentiment, predict_sentiment_batch
 # from app.utils_lr import predict_sentiment
-from app.utils_b import predict_sentiment, predict_sentiment_batch
+# from app.utils_b import predict_sentiment, predict_sentiment_batch
 
 app = FastAPI(title="Sentiment Analysis API")
 
@@ -37,9 +39,21 @@ async def predict_csv(file: UploadFile = File(...)):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported")
 
-    # Чтение CSV в DataFrame
+    # Чтение файла
     contents = await file.read()
-    output = predict_sentiment_batch(contents)
-    return StreamingResponse(output, media_type="text/csv",
-                             headers={"Content-Disposition": "attachment;"
-                                                             " filename=result.csv"})
+
+    # Прогноз
+    result = predict_sentiment_batch(contents)
+    csv_data = result["file"]
+    accuracy = result["accuracy"]
+
+    # Подготовка ответа
+    stream = io.StringIO(csv_data)
+    headers = {
+        "Content-Disposition": "attachment; filename=result.csv"
+    }
+
+    if accuracy is not None:
+        headers["X-Accuracy"] = str(accuracy)  # можно будет прочитать в JS
+
+    return StreamingResponse(stream, media_type="text/csv", headers=headers)

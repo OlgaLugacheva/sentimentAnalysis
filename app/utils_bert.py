@@ -1,23 +1,26 @@
-# utils
-import os
-import joblib
-import pandas as pd
-from fastapi import File, HTTPException
+# app/utils_bert.py
 import io
 
-from pandas._typing import ReadCsvBuffer
-from tensorflow.keras.models import load_model
-import numpy as np
-from pydantic import BaseModel, FilePath
+import pandas as pd
+from fastapi import HTTPException
+from pydantic import BaseModel
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import torch
+import joblib
+import os
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-VECTORIZER_PATH = os.path.join(BASE_DIR, "../models/vectorizer_b.pkl")
 
-model = joblib.load("models/best_model_b.pkl")
-label_encoder = joblib.load("models/label_encoder_b.pkl")
-vectorizer = joblib.load(VECTORIZER_PATH)
+# Пути к модели и энкодеру
+MODEL_PATH = "models/bert_model"
+ENCODER_PATH = "models/label_encoder.pkl"
 
-# Маппинг эмоций в три класса
+# Загружаем модель, токенизатор и LabelEncoder один раз
+tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
+model.eval()  # переводим в режим предсказания
+
+label_encoder = joblib.load(ENCODER_PATH)
+
 
 emotion_to_sentiment = {
     # POSITIVE
@@ -174,17 +177,21 @@ emotion_to_sentiment = {
 class TextInput(BaseModel):
     text: str
 
+def predict_sentiment(input_data):
+    text = input_data.text
 
-def predict_sentiment(input_data: TextInput):
-    processed_text = vectorizer.transform([input_data.text])
+    # Токенизация
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
 
-    # Получение вероятностей — опционально
-    prediction_probs = model.predict_proba(processed_text.toarray())
-    prediction_class = np.argmax(prediction_probs, axis=1)
+    # Предсказание
+    with torch.no_grad():
+        outputs = model(**inputs)
+        logits = outputs.logits
+        predicted_class_id = torch.argmax(logits, dim=1).item()
 
-    prediction_label = label_encoder.inverse_transform([prediction_class[0]])[0]
-    return prediction_label
-
+    # Преобразуем индекс обратно в метку
+    predicted_label = label_encoder.inverse_transform([predicted_class_id])[0]
+    return predicted_label
 def predict_sentiment_batch(filepath_or_buffer: bytes):
     # Чтение CSV в DataFrame
     df = pd.read_csv(io.BytesIO(filepath_or_buffer))
