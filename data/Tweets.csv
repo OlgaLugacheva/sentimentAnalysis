@@ -1,4 +1,4 @@
-tweet_id,Sentiment,airline_sentiment_confidence,negativereason,negativereason_confidence,airline,airline_sentiment_gold,name,negativereason_gold,retweet_count,Text,tweet_coord,tweet_created,tweet_location,user_timezone
+tweet_id,Sentiment,airline_sentiment_confidence,negativereason,negativereason_confidence,Platform,airline_sentiment_gold,name,negativereason_gold,Retweets,Text,tweet_coord,Timestamp,tweet_location,user_timezone
 5.70306E+17,neutral,1,,,Virgin America,,cairdin,,0,@VirginAmerica What @dhepburn said.,,2/24/2015 11:35,,Eastern Time (US & Canada)
 5.70301E+17,positive,0.3486,,0,Virgin America,,jnardino,,0,@VirginAmerica plus you've added commercials to the experience... tacky.,,2/24/2015 11:15,,Pacific Time (US & Canada)
 5.70301E+17,neutral,0.6837,,,Virgin America,,yvonnalynn,,0,@VirginAmerica I didn't today... Must mean I need to take another trip!,,2/24/2015 11:15,Lets Play,Central Time (US & Canada)

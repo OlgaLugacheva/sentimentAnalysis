@@ -1,18 +1,20 @@
 # main
 import io
 
-from fastapi import FastAPI, UploadFile, FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from fastapi import FastAPI
 from pydantic import BaseModel
-import joblib
-import os
-
+from app.utils_router import get_model_implementation
 # from app.utils import predict_sentiment
-from app.utils_bert import predict_sentiment, predict_sentiment_batch
+# from app.utils_bert import predict_sentiment, predict_sentiment_batch
+
 # from app.utils_lr import predict_sentiment
 # from app.utils_b import predict_sentiment, predict_sentiment_batch
-
+from app.utils_router import get_model_implementation
+from pydantic import BaseModel
+from typing import List
+import pandas as pd
+from src.train_model_bert import fine_tune_model_on_new_data
 app = FastAPI(title="Sentiment Analysis API")
 
 
@@ -23,8 +25,9 @@ class TextInput(BaseModel):
 
 # Эндпоинт предсказания
 @app.post("/predict/")
-def predict(input_data: TextInput):
-    prediction = predict_sentiment(input_data)
+def predict(input_data: TextInput, model_id: str = Query("bert")):
+    predict_fn, _ = get_model_implementation(model_id) #todo! если модель закэширована bert_model_tuned
+    prediction = predict_fn(input_data)
     return {"sentiment": prediction}
 
 
@@ -32,18 +35,18 @@ def predict(input_data: TextInput):
 def predict():
     return "hello world"
 
+class FineTuneItem(BaseModel):
+    text: str
+    label: str
 
 @app.post("/predict-csv")
-async def predict_csv(file: UploadFile = File(...)):
-    # Проверка расширения
+async def predict_csv(file: UploadFile = File(...), model_id: str = Query("bert")):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported")
 
-    # Чтение файла
     contents = await file.read()
-
-    # Прогноз
-    result = predict_sentiment_batch(contents)
+    _, predict_batch_fn = get_model_implementation(model_id)
+    result = predict_batch_fn(contents)
     csv_data = result["file"]
     accuracy = result["accuracy"]
 
@@ -57,3 +60,13 @@ async def predict_csv(file: UploadFile = File(...)):
         headers["X-Accuracy"] = str(accuracy)  # можно будет прочитать в JS
 
     return StreamingResponse(stream, media_type="text/csv", headers=headers)
+
+#todo: адаптировать под обе модели (lr)
+@app.post("/fine-tune")
+def fine_tune_endpoint(data: List[FineTuneItem]):
+    df = pd.DataFrame([{"Text": item.text, "Sentiment": item.label} for item in data])
+    try:
+        fine_tune_model_on_new_data(df)
+        return {"message": "Модель успешно дообучена"}
+    except Exception as e:
+        return {"error": str(e)}

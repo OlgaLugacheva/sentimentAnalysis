@@ -1,34 +1,19 @@
-import pandas as pd
-import numpy as np
+from collections import Counter
+
+import joblib
 import matplotlib.pyplot as plt
 import nltk
-from nltk.corpus import stopwords
-from nltk.stem import PorterStemmer
-from nltk.tokenize import word_tokenize
-from wordcloud import WordCloud
-from collections import Counter
-import re
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier, StackingClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.ensemble import RandomForestClassifier, StackingClassifier
 from sklearn.metrics import classification_report, accuracy_score
 from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import MultinomialNB
 from sklearn.preprocessing import LabelEncoder
-import joblib
+from wordcloud import WordCloud
 
-
-def clean_text(text, stop_words, stemmer):
-    # Удаляем URL
-    text = re.sub(r"http\S+", "", text)
-    # Удаляем упоминания
-    text = re.sub(r"@\w+", "", text)
-    # Удаляем хэштеги
-    text = re.sub(r"#\w+", "", text)
-    tokens = word_tokenize(text.lower())
-    tokens = [word for word in tokens if word.isalpha() and word not in stop_words]
-    tokens = [stemmer.stem(word) for word in tokens]
-    return ' '.join(tokens)
+from src.data_pre_processing import clean_text
 
 
 def plot_sentiment_analysis(df, sentiment_class):
@@ -145,12 +130,9 @@ def train_models(X_train_tfidf, X_test_tfidf, y_train, y_test):
 
 
 def train_and_save_model():
-    nltk.download('stopwords')
-    nltk.download('punkt')
 
     df = pd.read_csv("../data/Tweets.csv")
     df = df.drop_duplicates()
-
     sentiment_counts = df['Sentiment'].value_counts()
     print(f"Распределение классов: {sentiment_counts}")
 
@@ -161,10 +143,8 @@ def train_and_save_model():
     plt.xticks(rotation=0)
     plt.show()
 
-    stop_words = set(stopwords.words('english'))
-    stemmer = PorterStemmer()
 
-    df['Text_clean'] = df['Text'].apply(lambda x: clean_text(x, stop_words, stemmer))
+    df['Text_clean'] = df['Text'].apply(lambda x: clean_text(x))
 
     print("\nПример до и после очистки")
     print("ДО:", df['Text'].iloc[0])
