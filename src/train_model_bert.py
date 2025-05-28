@@ -15,9 +15,10 @@ import os
 from src.data_pre_processing import clean_text
 from src.data_pre_processing import map_emotions
 
-MODEL_DIR = "../models/bert_model"
-MODEL_DIR_TUNED = "../models/bert_model_tuned"
-ENCODER_PATH = os.path.join(MODEL_DIR, "label_encoder.pkl")
+MODELS_DIR = "models"
+MODEL_DIR = "models/bert_model"
+MODEL_DIR_TUNED = "models/bert_model_tuned"
+ENCODER_PATH = "models/label_encoder.pkl"
 
 def load_tokenizer_and_model(num_labels=None):
     tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
@@ -98,17 +99,26 @@ def train_and_save_bert_model():
 def fine_tune_model_on_new_data(new_data: pd.DataFrame, epochs: int = 1):
     label_encoder: LabelEncoder = joblib.load(ENCODER_PATH)
     tokenizer, model = load_tokenizer_and_model()
+    # Заморозка весов BERT
+    for param in model.bert.parameters():
+        param.requires_grad = False
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
+    # Загружаем оригинальный датасет
+    original_data = pd.read_csv("data/sentimentdataset_2.csv").drop_duplicates()
+    original_data = map_emotions(original_data).dropna(subset=["Text", "Sentiment"])
 
-    # Очистка и проверка
-    new_data = new_data.dropna(subset=["Text", "Sentiment"])
-    new_data = new_data[new_data["Sentiment"].isin(label_encoder.classes_)]
-    if new_data.empty:
+    # Объединяем с новым (ошибочным) датасетом
+    combined_data = pd.concat([original_data, new_data], ignore_index=True)
+    combined_data = combined_data.dropna(subset=["Text", "Sentiment"])
+    combined_data = combined_data[combined_data["Sentiment"].isin(label_encoder.classes_)]
+
+    if combined_data.empty:
         raise ValueError("Нет допустимых данных для дообучения")
 
-    new_data["Text_clean"] = new_data["Text"].apply(clean_text)
-    new_data["label_encoded"] = label_encoder.transform(new_data["Sentiment"])
-    train_dataset = tokenize_dataset(new_data, tokenizer, label_encoder)
+    combined_data["Text_clean"] = combined_data["Text"].apply(clean_text)
+    combined_data["label_encoded"] = label_encoder.transform(combined_data["Sentiment"])
+
+    train_dataset = tokenize_dataset(combined_data, tokenizer, label_encoder)
 
     training_args = TrainingArguments(
         output_dir=MODEL_DIR,
@@ -127,11 +137,9 @@ def fine_tune_model_on_new_data(new_data: pd.DataFrame, epochs: int = 1):
     )
 
     trainer.train()
-
-    # Сохраняем дообновлённую модель
     model.save_pretrained(MODEL_DIR_TUNED)
     tokenizer.save_pretrained(MODEL_DIR_TUNED)
-    print(" Модель успешно дообучена и сохранена.")
+    print("✅ Модель успешно дообучена и сохранена.")
 
 
 if __name__ == "__main__":

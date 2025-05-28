@@ -3,7 +3,7 @@
 from app import utils_bert,  utils_b
 
 
-def get_model_implementation(model_id: str):
+def get_model_implementation(model_id: str, model_v: str):
     model_id = model_id.strip().lower()
 
     if model_id == "bert":

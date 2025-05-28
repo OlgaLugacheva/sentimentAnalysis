@@ -285,8 +285,4 @@ def load_and_preprocess_data(df : DataFrame):
     # Приведем всё к строкам
     df['Text'] = df['Text'].astype(str)
     df['Text_clean'] = df['Text'].apply(lambda x: clean_text(x))
-    # df['Text_clean'] = df['Text'].apply(clean_text)
-    # df['Text_length'] = df['Text_clean'].apply(len)
-    # df = df[df['Text_length'] >= 10]
-
     return df

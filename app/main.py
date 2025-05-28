@@ -40,13 +40,14 @@ class FineTuneItem(BaseModel):
     label: str
 
 @app.post("/predict-csv")
-async def predict_csv(file: UploadFile = File(...), model_id: str = Query("bert")):
+async def predict_csv(file: UploadFile = File(...), model_id: str = Query("bert"),
+                      model_v: str = Query("bert_model")):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported")
 
     contents = await file.read()
-    _, predict_batch_fn = get_model_implementation(model_id)
-    result = predict_batch_fn(contents)
+    _, predict_batch_fn = get_model_implementation(model_id, model_v)
+    result = predict_batch_fn(contents, model_v)
     csv_data = result["file"]
     accuracy = result["accuracy"]
 
