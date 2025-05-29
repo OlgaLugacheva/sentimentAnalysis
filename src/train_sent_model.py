@@ -15,6 +15,7 @@ from wordcloud import WordCloud
 
 from src.data_pre_processing import clean_text
 
+MODEL_DIR_TUNED = "models/stack_model_tuned"
 
 def plot_sentiment_analysis(df, sentiment_class):
     plt.figure(figsize=(20, 8))
@@ -193,6 +194,42 @@ def train_and_save_model():
         joblib.dump(label_encoder, "../models/label_encoder_b.pkl")
         print(f"Модель сохранена в {filename_model}")
         print(f"Векторизатор сохранен в {filename_vector}")
+
+def fine_tune_model_on_new_data(new_data: pd.DataFrame):
+    # Загрузка энкодера и моделей
+    label_encoder: LabelEncoder = joblib.load("../models/label_encoder_b.pkl")
+    vectorizer: TfidfVectorizer = joblib.load("../models/vectorizer_b.pkl")
+    model: StackingClassifier = joblib.load("../models/best_model_b.pkl")
+
+    # Загрузка оригинального датасета
+    original_data = pd.read_csv("data/sentimentdataset_2.csv").drop_duplicates()
+    original_data = original_data.dropna(subset=["Text", "Sentiment"])
+    original_data["Text_clean"] = original_data["Text"].apply(clean_text)
+
+    # Подготовка новых данных
+    new_data = new_data.dropna(subset=["Text", "Sentiment"])
+    new_data["Text_clean"] = new_data["Text"].apply(clean_text)
+
+    # Объединение
+    combined_data = pd.concat([original_data, new_data], ignore_index=True)
+    combined_data = combined_data.dropna(subset=["Text_clean", "Sentiment"])
+    combined_data = combined_data[combined_data["Sentiment"].isin(label_encoder.classes_)]
+
+    if combined_data.empty:
+        raise ValueError("Нет допустимых данных для дообучения стек-модели")
+
+    # Обработка
+    X = combined_data["Text_clean"]
+    y = label_encoder.transform(combined_data["Sentiment"])
+    X_tfidf = vectorizer.transform(X)
+
+    # Дообучение модели
+    model.fit(X_tfidf, y)
+
+    # Сохранение
+    joblib.dump(model, MODEL_DIR_TUNED)
+    print("✅ Стек-модель успешно дообучена и сохранена.")
+
 
 
 if __name__ == "__main__":

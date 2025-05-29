@@ -33,8 +33,8 @@ def predict_sentiment(input_data: TextInput):
 
     prediction_label = label_encoder.inverse_transform([prediction_class[0]])[0]
     return prediction_label
-
-def predict_sentiment_batch(filepath_or_buffer: bytes):
+#todo: use origin
+def predict_sentiment_batch(filepath_or_buffer: bytes, model_version: str = "_origin"):
     # Чтение CSV в DataFrame
     df = pd.read_csv(io.BytesIO(filepath_or_buffer))
 

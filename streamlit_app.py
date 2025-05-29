@@ -22,10 +22,16 @@ model_options = {
 }
 
 # Опции версий модели
+# model_v_options = {
+#     "Старая версия": "bert_model",
+#     "Дообученная версия": "bert_model_tuned",
+# }
+
 model_v_options = {
-    "Старая версия": "bert_model",
-    "Дообученная версия": "bert_model_tuned",
+    "Старая версия": "_origin",
+    "Дообученная версия": "_tuned",
 }
+
 
 model_choice = st.selectbox("Выберите модель", list(model_options.keys()))
 model_id = model_options[model_choice]
@@ -195,7 +201,12 @@ with tab3:
                         })
 
                         try:
-                            response = requests.post(FINE_TUNE_URL, json=fine_tune_data.to_dict(orient="records"))
+                            fine_tune_model_id = "my" if model_id == "b" else "bert"
+                            response = requests.post(
+                                f"{FINE_TUNE_URL}?model_id={fine_tune_model_id}",
+                                json=fine_tune_data.to_dict(orient="records")
+                            )
+                            # response = requests.post(FINE_TUNE_URL, json=fine_tune_data.to_dict(orient="records")) #todo менять параметр запроса
                             if response.status_code == 200:
                                 st.success("✅ Модель успешно дообучена!")
                                 st.session_state.fine_tuned = True

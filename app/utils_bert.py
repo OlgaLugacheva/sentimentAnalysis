@@ -13,10 +13,11 @@ MODEL_PATH = "models/bert_model"
 ENCODER_PATH = "models/label_encoder.pkl"
 
 # Динамическая загрузка модели, токенизатора и энкодера
-def load_model_components(model_version: str = "bert_model"):
-    model_path = os.path.join("models", model_version)
-    # encoder_path = os.path.join(model_path, "label_encoder.pkl")
+def load_model_components(model_version: str = "_origin"):
 
+    # encoder_path = os.path.join(model_path, "label_encoder.pkl")
+    model_version_d = "bert_model" if model_version == "_origin" else "bert_model_tuned"
+    model_path = os.path.join("models", model_version_d)
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Модель '{model_version}' не найдена по пути {model_path}")
 

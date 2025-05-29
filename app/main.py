@@ -10,11 +10,11 @@ from app.utils_router import get_model_implementation
 
 # from app.utils_lr import predict_sentiment
 # from app.utils_b import predict_sentiment, predict_sentiment_batch
-from app.utils_router import get_model_implementation
+from app.utils_router import get_model_implementation, get_model_fine_tune
 from pydantic import BaseModel
 from typing import List
 import pandas as pd
-from src.train_model_bert import fine_tune_model_on_new_data
+# from src.train_model_bert import fine_tune_model_on_new_data
 app = FastAPI(title="Sentiment Analysis API")
 
 
@@ -46,7 +46,7 @@ async def predict_csv(file: UploadFile = File(...), model_id: str = Query("bert"
         raise HTTPException(status_code=400, detail="Only CSV files are supported")
 
     contents = await file.read()
-    _, predict_batch_fn = get_model_implementation(model_id, model_v)
+    _, predict_batch_fn = get_model_implementation(model_id)
     result = predict_batch_fn(contents, model_v)
     csv_data = result["file"]
     accuracy = result["accuracy"]
@@ -62,12 +62,13 @@ async def predict_csv(file: UploadFile = File(...), model_id: str = Query("bert"
 
     return StreamingResponse(stream, media_type="text/csv", headers=headers)
 
-#todo: адаптировать под обе модели (lr)
+#todo: адаптировать под обе модели (стекинг)
 @app.post("/fine-tune")
-def fine_tune_endpoint(data: List[FineTuneItem]):
+def fine_tune_endpoint(data: List[FineTuneItem], model_id: str = Query("bert")):
     df = pd.DataFrame([{"Text": item.text, "Sentiment": item.label} for item in data])
     try:
-        fine_tune_model_on_new_data(df)
+        _, fine_tune_batch_fn = get_model_fine_tune(model_id)
+        fine_tune_batch_fn(df, model_id)
         return {"message": "Модель успешно дообучена"}
     except Exception as e:
         return {"error": str(e)}
