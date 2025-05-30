@@ -8,7 +8,7 @@ from sklearn.ensemble import RandomForestClassifier, StackingClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, accuracy_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.preprocessing import LabelEncoder
 from wordcloud import WordCloud
@@ -59,7 +59,7 @@ def tfidf_vectorizer_split(df, label_encoder, text_column='Text_clean', target_c
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.3, random_state=42)
 
-    vectorizer = TfidfVectorizer(max_features=max_features, ngram_range=(1, 2))
+    vectorizer = TfidfVectorizer(max_features=10000, ngram_range=(1, 3))
     X_train_tfidf = vectorizer.fit_transform(X_train)
     X_test_tfidf = vectorizer.transform(X_test)
 
@@ -195,11 +195,12 @@ def train_and_save_model():
         print(f"Модель сохранена в {filename_model}")
         print(f"Векторизатор сохранен в {filename_vector}")
 
+
 def fine_tune_model_on_new_data(new_data: pd.DataFrame):
     # Загрузка энкодера и моделей
-    label_encoder: LabelEncoder = joblib.load("../models/label_encoder_b.pkl")
-    vectorizer: TfidfVectorizer = joblib.load("../models/vectorizer_b.pkl")
-    model: StackingClassifier = joblib.load("../models/best_model_b.pkl")
+    label_encoder: LabelEncoder = joblib.load("models/label_encoder_b.pkl")
+    vectorizer: TfidfVectorizer = joblib.load("models/vectorizer_b.pkl")
+    old_model: StackingClassifier = joblib.load("models/best_model_b.pkl")
 
     # Загрузка оригинального датасета
     original_data = pd.read_csv("data/sentimentdataset_2.csv").drop_duplicates()
@@ -215,21 +216,45 @@ def fine_tune_model_on_new_data(new_data: pd.DataFrame):
     combined_data = combined_data.dropna(subset=["Text_clean", "Sentiment"])
     combined_data = combined_data[combined_data["Sentiment"].isin(label_encoder.classes_)]
 
-    if combined_data.empty:
-        raise ValueError("Нет допустимых данных для дообучения стек-модели")
-
-    # Обработка
+    # Повторная векторизация и энкодинг
     X = combined_data["Text_clean"]
     y = label_encoder.transform(combined_data["Sentiment"])
-    X_tfidf = vectorizer.transform(X)
 
-    # Дообучение модели
-    model.fit(X_tfidf, y)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.3, random_state=42, stratify=y
+    )
 
-    # Сохранение
-    joblib.dump(model, MODEL_DIR_TUNED)
+    # Обучаем новый векторизатор
+    new_vectorizer = TfidfVectorizer(max_features=10000, ngram_range=(1, 3))
+    X_train_tfidf = new_vectorizer.fit_transform(X_train)
+    X_test_tfidf = new_vectorizer.transform(X_test)
+
+    # Переобучаем стек-модель
+    base_model_1 = ('lr', LogisticRegression(solver='liblinear', multi_class='ovr', C=1.0, random_state=42))
+    base_model_2 = ('nb', MultinomialNB(alpha=0.1))
+    base_model_3 = ('rf', RandomForestClassifier(n_estimators=300, max_depth=15, random_state=42, n_jobs=-1))
+
+    meta_model = LogisticRegression(solver='liblinear', random_state=42)
+
+    tuned_model = StackingClassifier(
+        estimators=[base_model_1, base_model_2, base_model_3],
+        final_estimator=meta_model,
+        cv=5,
+        n_jobs=-1,
+        passthrough=True
+    )
+
+    tuned_model.fit(X_train_tfidf, y_train)
+    y_pred = tuned_model.predict(X_test_tfidf)
+    print("🔄 Дообученная модель:")
+    print(classification_report(y_test, y_pred, target_names=[str(c) for c in label_encoder.classes_]))
+
+    # Сохраняем обновлённые артефакты
+    joblib.dump(tuned_model, "models/stack_model_tuned.pkl")
+    joblib.dump(new_vectorizer, "models/vectorizer_tuned.pkl")
+    joblib.dump(label_encoder, "models/label_encoder_tuned.pkl")
+
     print("✅ Стек-модель успешно дообучена и сохранена.")
-
 
 
 if __name__ == "__main__":

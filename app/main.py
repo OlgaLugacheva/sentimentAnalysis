@@ -58,7 +58,7 @@ async def predict_csv(file: UploadFile = File(...), model_id: str = Query("bert"
     }
 
     if accuracy is not None:
-        headers["X-Accuracy"] = str(accuracy)  # можно будет прочитать в JS
+        headers["X-Accuracy"] = str(accuracy)
 
     return StreamingResponse(stream, media_type="text/csv", headers=headers)
 
@@ -67,8 +67,8 @@ async def predict_csv(file: UploadFile = File(...), model_id: str = Query("bert"
 def fine_tune_endpoint(data: List[FineTuneItem], model_id: str = Query("bert")):
     df = pd.DataFrame([{"Text": item.text, "Sentiment": item.label} for item in data])
     try:
-        _, fine_tune_batch_fn = get_model_fine_tune(model_id)
-        fine_tune_batch_fn(df, model_id)
+        fine_tune_batch_fn = get_model_fine_tune(model_id)
+        fine_tune_batch_fn(df)
         return {"message": "Модель успешно дообучена"}
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=f"Ошибка при дообучении модели: {str(e)}")

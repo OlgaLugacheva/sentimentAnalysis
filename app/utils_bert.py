@@ -34,8 +34,8 @@ class TextInput(BaseModel):
     model_version: str = "bert_model"  # По умолчанию используем старую модель
 
 
-def predict_sentiment(input_data: TextInput):
-    tokenizer, model, label_encoder = load_model_components(input_data.model_version)
+def predict_sentiment(input_data: TextInput, model_version: str = "bert_model"):
+    tokenizer, model, label_encoder = load_model_components(model_version)
 
     inputs = tokenizer(input_data.text, return_tensors="pt", truncation=True, padding=True)
 
