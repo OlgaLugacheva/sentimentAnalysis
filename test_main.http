@@ -59,7 +59,7 @@ Content-Type: text/csv
 
 Text,Sentiment
 I love it,joy
-This product is fuck!,anger
+This product is aweful!,anger
 anger,anger
 just okay,neutral
 --MyBoundary--

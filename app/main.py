@@ -4,17 +4,10 @@ import io
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from app.utils_router import get_model_implementation
-# from app.utils import predict_sentiment
-# from app.utils_bert import predict_sentiment, predict_sentiment_batch
-
-# from app.utils_lr import predict_sentiment
-# from app.utils_b import predict_sentiment, predict_sentiment_batch
 from app.utils_router import get_model_implementation, get_model_fine_tune
 from pydantic import BaseModel
 from typing import List
 import pandas as pd
-# from src.train_model_bert import fine_tune_model_on_new_data
 app = FastAPI(title="Sentiment Analysis API")
 
 
@@ -26,7 +19,7 @@ class TextInput(BaseModel):
 # Эндпоинт предсказания
 @app.post("/predict/")
 def predict(input_data: TextInput, model_id: str = Query("bert")):
-    predict_fn, _ = get_model_implementation(model_id) #todo! если модель закэширована bert_model_tuned
+    predict_fn, _ = get_model_implementation(model_id)
     prediction = predict_fn(input_data)
     return {"sentiment": prediction}
 
@@ -62,7 +55,6 @@ async def predict_csv(file: UploadFile = File(...), model_id: str = Query("bert"
 
     return StreamingResponse(stream, media_type="text/csv", headers=headers)
 
-#todo: адаптировать под обе модели (стекинг)
 @app.post("/fine-tune")
 def fine_tune_endpoint(data: List[FineTuneItem], model_id: str = Query("bert")):
     df = pd.DataFrame([{"Text": item.text, "Sentiment": item.label} for item in data])

@@ -246,7 +246,7 @@ def fine_tune_model_on_new_data(new_data: pd.DataFrame):
 
     tuned_model.fit(X_train_tfidf, y_train)
     y_pred = tuned_model.predict(X_test_tfidf)
-    print("🔄 Дообученная модель:")
+    print("Дообученная модель:")
     print(classification_report(y_test, y_pred, target_names=[str(c) for c in label_encoder.classes_]))
 
     # Сохраняем обновлённые артефакты
@@ -254,7 +254,7 @@ def fine_tune_model_on_new_data(new_data: pd.DataFrame):
     joblib.dump(new_vectorizer, "models/vectorizer_tuned.pkl")
     joblib.dump(label_encoder, "models/label_encoder_tuned.pkl")
 
-    print("✅ Стек-модель успешно дообучена и сохранена.")
+    print("Стек-модель успешно дообучена и сохранена.")
 
 
 if __name__ == "__main__":

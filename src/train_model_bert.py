@@ -1,4 +1,3 @@
-# src/train_model_bert.py
 
 import pandas as pd
 import numpy as np
@@ -139,7 +138,7 @@ def fine_tune_model_on_new_data(new_data: pd.DataFrame, epochs: int = 1):
     trainer.train()
     model.save_pretrained(MODEL_DIR_TUNED)
     tokenizer.save_pretrained(MODEL_DIR_TUNED)
-    print("✅ Модель успешно дообучена и сохранена.")
+    print("Модель успешно дообучена и сохранена.")
 
 
 if __name__ == "__main__":

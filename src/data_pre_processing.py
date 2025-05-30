@@ -1,16 +1,9 @@
-import pandas as pd
 import re
-import matplotlib.pyplot as plt
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
 from nltk.tokenize import word_tokenize
 from pandas import DataFrame
-from wordcloud import WordCloud
-from collections import Counter
-from sklearn.model_selection import train_test_split
-from sklearn.feature_extraction.text import TfidfVectorizer
-
 
 # Маппинг эмоций в три класса
 emotion_to_sentiment = {

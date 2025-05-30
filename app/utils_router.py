@@ -1,4 +1,3 @@
-# utils_router.py
 
 from app import utils_bert,  utils_b
 from src import train_sent_model,  train_model_bert

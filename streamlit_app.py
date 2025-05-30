@@ -20,7 +20,7 @@ if "fine_tuned_model_id" not in st.session_state:
 # Опции выбора модели и версии
 model_options = {
     "BERT (transformers)": "bert",
-    "Linear Regression": "b",
+    "Stacking": "b",
 }
 
 model_v_options = {
@@ -128,10 +128,10 @@ with tab3:
                                 json=fine_tune_data.to_dict(orient="records")
                             )
                             if response.status_code == 200:
-                                st.success("✅ Модель успешно дообучена!")
+                                st.success(" Модель успешно дообучена!")
                                 st.session_state.fine_tuned = True
                                 st.session_state.fine_tuned_model_id = model_id
                             else:
-                                st.error(f"❌ Ошибка дообучения: {response.status_code}")
+                                st.error(f" Ошибка дообучения: {response.status_code}")
                         except Exception as e:
-                            st.error(f"❌ Ошибка соединения: {e}")
+                            st.error(f" Ошибка соединения: {e}")
