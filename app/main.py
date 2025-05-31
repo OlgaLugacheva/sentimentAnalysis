@@ -24,14 +24,11 @@ def predict(input_data: TextInput, model_id: str = Query("bert")):
     return {"sentiment": prediction}
 
 
-@app.get("/test/")
-def predict():
-    return "hello world"
-
 class FineTuneItem(BaseModel):
     text: str
     label: str
 
+# Предсказание по набору данных в виде файла csv
 @app.post("/predict-csv")
 async def predict_csv(file: UploadFile = File(...), model_id: str = Query("bert"),
                       model_v: str = Query("bert_model")):
@@ -54,7 +51,7 @@ async def predict_csv(file: UploadFile = File(...), model_id: str = Query("bert"
         headers["X-Accuracy"] = str(accuracy)
 
     return StreamingResponse(stream, media_type="text/csv", headers=headers)
-
+#Эндпоинт дообучения
 @app.post("/fine-tune")
 def fine_tune_endpoint(data: List[FineTuneItem], model_id: str = Query("bert")):
     df = pd.DataFrame([{"Text": item.text, "Sentiment": item.label} for item in data])
