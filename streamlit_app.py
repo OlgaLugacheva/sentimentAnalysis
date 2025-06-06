@@ -45,15 +45,16 @@ with tab1:
         if not text.strip():
             st.warning("Пожалуйста, введите текст.")
         else:
-            try:
                 response = requests.post(API_TEXT_URL, json={"text": text, "model_id": model_id, "model_v": model_v})
                 if response.status_code == 200:
                     result = response.json()
                     st.success(f"Тональность: **{result['sentiment']}**")
                 else:
-                    st.error(f"Ошибка API: {response.status_code}")
-            except Exception as e:
-                st.error(f"Ошибка соединения с API: {e}")
+                    try:
+                        error_detail = response.json().get("detail", "Неизвестная ошибка")
+                    except Exception:
+                        error_detail = response.text or "Не удалось прочитать ответ сервера"
+                    st.error(f"Ошибка API ({response.status_code}): {error_detail}")
 
 # TAB 2: CSV-файл
 with tab2:
@@ -67,11 +68,13 @@ with tab2:
         model_v = model_v_options["Старая версия"]
 
     uploaded_file = st.file_uploader("Загрузите CSV-файл с колонкой 'Text' (и опционально 'Sentiment')", type=["csv"])
+
     if uploaded_file is not None:
         if st.button("Анализировать CSV", key="csv_analysis"):
             try:
                 files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "text/csv")}
-                response = requests.post(f"{API_CSV_URL}?model_id={model_id}&model_v={model_v}", files=files)
+                params = {"model_id": model_id, "model_v": model_v}
+                response = requests.post(API_CSV_URL, files=files, params=params)
 
                 if response.status_code == 200:
                     st.session_state.df_result = pd.read_csv(BytesIO(response.content))
@@ -83,7 +86,12 @@ with tab2:
                     st.download_button("📥 Скачать результат CSV", response.content,
                                        file_name="result.csv", mime="text/csv")
                 else:
-                    st.error(f"Ошибка API: {response.status_code}")
+                    try:
+                        error_detail = response.json().get("detail", "Неизвестная ошибка")
+                    except Exception:
+                        error_detail = response.text or "Не удалось прочитать ответ сервера"
+                    st.error(f"Ошибка API ({response.status_code}): {error_detail}")
+
             except Exception as e:
                 st.error(f"Ошибка при анализе: {e}")
 
@@ -93,7 +101,7 @@ with tab3:
     if df_result is None:
         st.info("Загрузите и проанализируйте файл во вкладке 'CSV-файл', чтобы увидеть дэшборд.")
     else:
-        st.subheader("📊 Дэшборд по результатам анализа")
+        st.subheader(" Дэшборд по результатам анализа")
         if "Predict_sentiment" not in df_result.columns:
             st.warning("В результатах нет колонки 'Predict_sentiment'. Невозможно построить визуализации.")
         else:
@@ -109,7 +117,7 @@ with tab3:
                     mask & (true_labels != predicted_labels), ["Text", "Sentiment", "Predict_sentiment"]
                 ]
 
-                st.metric("📏 Accuracy", f"{accuracy * 100:.2f}%")
+                st.metric("Accuracy", f"{accuracy * 100:.2f}%")
 
                 if not mismatched_rows.empty:
                     st.subheader("🔍 Несовпадения между истинными и предсказанными значениями")
@@ -124,14 +132,22 @@ with tab3:
                         try:
                             fine_tune_model_id = "my" if model_id == "b" else "bert"
                             response = requests.post(
-                                f"{FINE_TUNE_URL}?model_id={fine_tune_model_id}",
+                                FINE_TUNE_URL,
+                                params={"model_id": fine_tune_model_id},
                                 json=fine_tune_data.to_dict(orient="records")
                             )
+
                             if response.status_code == 200:
-                                st.success(" Модель успешно дообучена!")
+                                st.success("✅ Модель успешно дообучена!")
                                 st.session_state.fine_tuned = True
                                 st.session_state.fine_tuned_model_id = model_id
                             else:
-                                st.error(f" Ошибка дообучения: {response.status_code}")
+                                try:
+                                    error_detail = response.json().get("detail", "Неизвестная ошибка")
+                                except Exception:
+                                    error_detail = response.text or "Не удалось прочитать ответ сервера"
+                                st.error(f"Ошибка дообучения ({response.status_code}): {error_detail}")
+
                         except Exception as e:
-                            st.error(f" Ошибка соединения: {e}")
+                            st.error(f"Ошибка соединения: {e}")
+

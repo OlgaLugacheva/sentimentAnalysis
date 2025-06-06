@@ -35,7 +35,7 @@ def load_model_components(model_version: str = "_origin"):
     return vectorizer, model, label_encoder
 
 def predict_sentiment(input_data: TextInput, model_version: str = "_origin"):
-    vectorizer, model, label_encoder = load_model_components(model_version) #todo: check!!!!!!!
+    vectorizer, model, label_encoder = load_model_components(model_version)
     processed_text = vectorizer.transform([input_data.text])
 
     # Получение вероятностей — опционально
@@ -51,7 +51,6 @@ def predict_sentiment_batch(filepath_or_buffer: bytes, model_version: str = "_or
     # Проверка наличия нужной колонки
     if "Text" not in df.columns:
         raise HTTPException(status_code=400, detail="CSV must contain 'Text' column")
-    # sentiment check
 
     df = load_and_preprocess_data(df)
 

@@ -212,9 +212,16 @@ def fine_tune_model_on_new_data(new_data: pd.DataFrame):
     new_data["Text_clean"] = new_data["Text"].apply(clean_text)
 
     # Объединение
-    combined_data = pd.concat([original_data, new_data], ignore_index=True)
+    combined_data = pd.concat([
+        original_data[['Text_clean', 'Sentiment']],
+        new_data[['Text_clean', 'Sentiment']]
+    ], ignore_index=True)
     combined_data = combined_data.dropna(subset=["Text_clean", "Sentiment"])
+
     combined_data = combined_data[combined_data["Sentiment"].isin(label_encoder.classes_)]
+    if len(combined_data) < 50:
+        raise ValueError(
+            "Слишком мало данных после фильтрации по меткам. Возможно, в новых данных неизвестные классы.")
 
     # Повторная векторизация и энкодинг
     X = combined_data["Text_clean"]
