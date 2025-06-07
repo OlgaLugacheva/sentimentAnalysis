@@ -17,6 +17,9 @@ from src.data_pre_processing import clean_text
 
 MODEL_DIR_TUNED = "models/stack_model_tuned"
 
+"""
+Строит визуализацию для заданного класса тональности — облако слов и гистограмму 20 самых частотных слов.
+"""
 def plot_sentiment_analysis(df, sentiment_class):
     plt.figure(figsize=(20, 8))
     plt.subplot(1, 2, 1)
@@ -38,7 +41,9 @@ def plot_sentiment_analysis(df, sentiment_class):
     plt.tight_layout()
     plt.show()
 
-
+"""
+Очищает, кодирует и разбивает данные на обучающую и тестовую выборки. Применяет TF-IDF векторизацию.
+"""
 def tfidf_vectorizer_split(df, label_encoder, text_column='Text_clean', target_column='Sentiment', max_features=5000):
     X = df[text_column]
     y = df[target_column]
@@ -70,7 +75,11 @@ def tfidf_vectorizer_split(df, label_encoder, text_column='Text_clean', target_c
 
     return X_train_tfidf, X_test_tfidf, y_train, y_test, vectorizer
 
+"""
+Назначение: перебирает комбинации из двух базовых моделей + одну финальную, обучает стекинг и выбирает лучший по accuracy.
+Обучает базовые модели (логистическая регрессия, наивный Байес, случайный лес) и создает стекинг-модели с различными параметрами.
 
+"""
 def train_models(X_train_tfidf, X_test_tfidf, y_train, y_test):
     global_best_model = None
     global_best_acc = -1
@@ -129,7 +138,9 @@ def train_models(X_train_tfidf, X_test_tfidf, y_train, y_test):
     print(global_best_model)
     return global_best_model
 
-
+"""
+ Назначение: запускает весь пайплайн обучения: загрузка, очистка, визуализация, векторизация, обучение и сохранение лучшей модели
+"""
 def train_and_save_model():
 
     df = pd.read_csv("../data/Tweets.csv")
@@ -195,7 +206,9 @@ def train_and_save_model():
         print(f"Модель сохранена в {filename_model}")
         print(f"Векторизатор сохранен в {filename_vector}")
 
-
+"""
+Назначение: переобучает стек-модель на новых данных, комбинируя с предыдущими. Это позволяет делать "дообучение", а не тренировать с нуля.
+"""
 def fine_tune_model_on_new_data(new_data: pd.DataFrame):
     # Загрузка энкодера и моделей
     label_encoder: LabelEncoder = joblib.load("models/label_encoder_b.pkl")

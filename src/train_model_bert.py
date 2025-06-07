@@ -19,6 +19,12 @@ MODEL_DIR = "models/bert_model"
 MODEL_DIR_TUNED = "models/bert_model_tuned"
 ENCODER_PATH = "models/label_encoder.pkl"
 
+"""
+Загружает токенизатор и либо:
+Загружает уже обученную модель из MODEL_DIR, если она существует.
+Иначе — загружает базовую bert-base-uncased модель и задаёт количество меток (num_labels) для классификации.
+
+"""
 def load_tokenizer_and_model(num_labels=None):
     tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
     if os.path.exists(MODEL_DIR):
@@ -27,6 +33,10 @@ def load_tokenizer_and_model(num_labels=None):
         assert num_labels is not None, "num_labels must be provided when training from scratch"
         model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=num_labels)
     return tokenizer, model
+
+"""Очищает текст, кодирует метки .
+
+Токенизирует текст и добавляет метку (labels) для обучения."""
 
 def tokenize_dataset(df, tokenizer, label_encoder):
     df["Text_clean"] = df["Text"].apply(lambda x: clean_text(x))
@@ -40,6 +50,19 @@ def tokenize_dataset(df, tokenizer, label_encoder):
 
     dataset = dataset.map(tokenize_function, batched=True)
     return dataset
+
+"""
+Загружает CSV-файл с датасетом.
+Преобразует эмоции в метки (map_emotions) и очищает текст (clean_text).
+Удаляет слишком редкие метки (меньше 2 наблюдений).
+Кодирует метки с помощью LabelEncoder.
+Делит данные на обучающую и тестовую выборки.
+Загружает/инициализирует модель и токенизатор.
+Определяет параметры обучения
+Обучает модель с помощью Trainer.
+Сохраняет модель, токенизатор и энкодер меток
+
+"""
 
 def train_and_save_bert_model():
     df = pd.read_csv("../data/sentimentdataset_2.csv").drop_duplicates()
@@ -94,7 +117,9 @@ def train_and_save_bert_model():
     tokenizer.save_pretrained(MODEL_DIR)
     joblib.dump(label_encoder, ENCODER_PATH)
 
-
+"""
+Дообучает уже натренированную модель на новых данных.
+"""
 def fine_tune_model_on_new_data(new_data: pd.DataFrame, epochs: int = 1):
     label_encoder: LabelEncoder = joblib.load(ENCODER_PATH)
     tokenizer, model = load_tokenizer_and_model()
